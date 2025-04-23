@@ -11,12 +11,15 @@
 
 // assign meaningful names to those pins that will be used
 
-int regular_speed = 140;
+int regular_speed = 200;
 const int pinL_Sensor = A5; // pin A5: left sensor
 const int pinB_Sensor = A4; // pin A4: bumper sensor
 const int pinR_Sensor = A3; // pin A3: right sensor
 const int pinOR_Sensor = A1;
 const int pinOL_Sensor = A2;
+const int pinM_Sensor = A0;
+int countmiddleSensor = 0;
+int countfor180 = 0;
 
 const int pinL_PWM = 9;  // pin D9: left motor speed
 const int pinL_DIR = 10; // pin D10: left motor direction
@@ -31,6 +34,7 @@ int leftSensor = 1;   // not sensing white
 int rightSensor = 1;  // not sensing white
 int OleftSensor = 1;
 int OrightSensor = 1;
+int middleSensor = 1;
 
 int countBumper = 0; // bumper sensor not triggered yet
 
@@ -38,9 +42,15 @@ int countBumper = 0; // bumper sensor not triggered yet
 
 void go_straight(int speed)
 {
-    analogWrite(pinL_PWM, speed+10);
-    analogWrite(pinR_PWM, speed+10);
+    analogWrite(pinL_PWM, speed);
+    analogWrite(pinR_PWM, speed);
     digitalWrite(pinL_DIR, HIGH);
+    digitalWrite(pinR_DIR, HIGH);
+}
+void gentle_turn_left(int speed)
+{
+    analogWrite(pinL_PWM, 0);
+    analogWrite(pinR_PWM, speed);
     digitalWrite(pinR_DIR, HIGH);
 }
 void turn_left(int speed)
@@ -49,6 +59,12 @@ void turn_left(int speed)
     analogWrite(pinR_PWM, speed);
     digitalWrite(pinL_DIR, LOW);
     digitalWrite(pinR_DIR, HIGH);
+}
+void gentle_turn_right(int speed)
+{
+    analogWrite(pinL_PWM, speed);
+    analogWrite(pinR_PWM, 0);
+    digitalWrite(pinL_DIR, HIGH);
 }
 void turn_right(int speed)
 {
@@ -76,41 +92,23 @@ void turn_right_plus(int speed)
     digitalWrite(pinL_DIR, HIGH);
     digitalWrite(pinR_DIR, LOW);
 }
-void correct_track(int delaytime)
-{
-    if (!leftSensor && rightSensor)
-    {
-        turn_left(regular_speed);
-        delay(delaytime);
-    }
 
-    if (leftSensor && !rightSensor)
+void improved_correct_track(int speed){
+    if (leftSensor && rightSensor && !middleSensor)
     {
-        turn_right(regular_speed);
-        delay(delaytime);
+        go_straight(speed);
     }
-
-    if (leftSensor && rightSensor)
-    {
-        go_straight(regular_speed);
-        delay(delaytime);
+    if(leftSensor && !rightSensor && !middleSensor){
+      gentle_turn_right(speed);
     }
-}
-void older_correct_track()
-{
-    if (!leftSensor && rightSensor)
-    {
-        turn_left(regular_speed);
+    if(!leftSensor && rightSensor && !middleSensor){
+      gentle_turn_left(speed);
     }
-
-    if (leftSensor && !rightSensor)
-    {
-        turn_right(regular_speed);
+    if(!leftSensor && rightSensor && middleSensor){
+      turn_left(speed);
     }
-
-    if (leftSensor && rightSensor)
-    {
-        go_straight(regular_speed);
+    if(leftSensor && !rightSensor && middleSensor){
+      turn_right(speed);
     }
 }
 
@@ -122,6 +120,7 @@ void setup()
     pinMode(pinR_Sensor, INPUT);
     pinMode(pinOR_Sensor, INPUT);
     pinMode(pinOL_Sensor, INPUT);
+    pinMode(pinM_Sensor,  INPUT);
 
     pinMode(pinL_DIR, OUTPUT);
     pinMode(pinR_DIR, OUTPUT);
@@ -147,7 +146,7 @@ void loop()
     rightSensor = digitalRead(pinR_Sensor);
     OrightSensor = digitalRead(pinOR_Sensor);
     OleftSensor = digitalRead(pinOL_Sensor);
-
+    middleSensor = digitalRead(pinM_Sensor);
     // car stops at the start position when bumper sensor no trigger
     if (bumperSensor && countBumper == 0)
     {
@@ -160,37 +159,276 @@ void loop()
     {
         go_straight(regular_speed+10);
         countBumper = countBumper + 1;
-        delay(600); // to let the car leave the start position with no miscount
+        delay(300); // to let the car leave the start position with no miscount
     }
     if (bumperSensor && countBumper == 1)
     {
+       improved_correct_track(150);
         if (!OleftSensor && !OrightSensor)
         {
-            // stop_car();
-            go_straight(regular_speed);
-            delay(100);
-            turn_left(regular_speed);
-            delay(350);
-            go_straight(regular_speed);
-            delay(150);
+            
             countBumper = countBumper + 1;
+            }
+            
         }
-        older_correct_track();
-    }
+    
 
     if (bumperSensor && countBumper == 2)
     {
-
-        if (!OleftSensor && OrightSensor)
+      
+         turn_left(100);
+         
+         
+         if(!middleSensor && OleftSensor  && OrightSensor){
+         countBumper++;
+         }
+    }
+    if(bumperSensor && countBumper ==3){
+      improved_correct_track(200);
+      if(!OleftSensor ){
+        
+        countBumper = countBumper +1;
+        
+      }
+    }
+    if(bumperSensor && countBumper ==4){
+      turn_left(100);
+      delay(400);
+      countBumper++;
+      }
+      
+    if(bumperSensor && countBumper ==5){
+      turn_left(100);
+      if(!middleSensor ){
+        countBumper++;
+    }
+    }
+    if(bumperSensor && countBumper ==6){
+      improved_correct_track(200);
+      if(!middleSensor && !leftSensor && !rightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper==7){
+      stop_car();
+    }
+      /*turn_left(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+      }
+      if(countmiddleSensor ==2){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==8){
+      improved_correct_track(200);
+    }
+    /*if(bumperSensor && countBumper==6){
+      turn_left(100);
+      if(!middleSensor && OleftSensor && OrightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==7){
+      improved_correct_track(200);
+      if(!middleSensor && !leftSensor && !rightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper==8){
+      turn_left(100);
+      if(!middleSensor && OleftSensor && OrightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper==9){
+      improved_correct_track(200);
+    }
+    
+      /*if(!middleSensor && OleftSensor && OrightSensor){
+         countBumper = countBumper+1;
+         /*countmiddleSensor++;
+         delay(180);
+         if(countmiddleSensor==4){
+          countBumper++;
+         }*/
+         /*}
+    }
+      if(bumperSensor && countBumper ==6){
+        stop_car();
+      }*/
+      /*if((!middleSensor && !leftSensor &&  !rightSensor)||(!middleSensor && !leftSensor && !OleftSensor) ||(!middleSensor && !rightSensor && !OrightSensor) ){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==6){
+      turn_left(100);
+        if(!middleSensor){
+          countmiddleSensor++;
+          delay(180);
+        }
+        if(countmiddleSensor==6){
+          countBumper++;
+        }
+    }
+    if(bumperSensor && countBumper ==7){
+      improved_correct_track(200);
+      if(!middleSensor && !leftSensor &&  !rightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==8){
+      turn_left(100);
+        if(!middleSensor){
+          countmiddleSensor++;
+          delay(180);
+        }
+        if(countmiddleSensor==8){
+          countBumper++;
+        }
+     
+    }
+    if(bumperSensor && countBumper ==9){
+      improved_correct_track(200);
+      if(!OrightSensor && !middleSensor && !rightSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==10){
+      turn_right(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+        delay(180);
+      }
+      if(countmiddleSensor ==10){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==11){
+      improved_correct_track(200);
+      if(!middleSensor && !leftSensor &&   !OleftSensor ){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==12){
+      turn_left(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+        delay(300);
+      }
+      if(countmiddleSensor ==12){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==13){
+      improved_correct_track(200);
+      
+      if(!middleSensor && !leftSensor &&   !OleftSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper==14){
+      turn_left(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+        delay(300);
+      }
+      if(countmiddleSensor ==14){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==15){
+      improved_correct_track(200);
+      
+      if(!OleftSensor){
+        go_straight(200);
+        delay(300);
+        
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper==16){
+      improved_correct_track(200);
+        if(!OleftSensor && !leftSensor && !middleSensor){
+          countBumper++;
+        }
+      }
+    
+    if(bumperSensor && countBumper ==17){
+      turn_left(100);
+      if(!middleSensor ){
+        countmiddleSensor++;
+        delay(200);
+      }
+      if(countmiddleSensor==16){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==18){
+      improved_correct_track(200); 
+      if(!OrightSensor){
+        countBumper++;  
+      }
+    }
+    if(bumperSensor && countBumper ==19){
+      turn_right(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+        delay(180);
+      }
+      if(countmiddleSensor ==18){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==20){
+      improved_correct_track(200);
+      if(!middleSensor && !rightSensor && !OrightSensor && !leftSensor && !OleftSensor){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==21){
+      turn_left(100);
+      if(!middleSensor){
+        countmiddleSensor++;
+        delay(180);
+      }
+      if(countmiddleSensor== 23){
+        countBumper++;
+      }
+    }
+    if(bumperSensor && countBumper ==22){
+      improved_correct_track(200);
+    }
+      /*improved_correct_track(200);
+      
+      if(!OleftSensor && !leftSensor && !middleSensor && rightSensor && OrightSensor){
+        
+        countBumper = countBumper +1;
+        
+      }
+     
+    }
+    if(bumperSensor && countBumper==4){
+      
+      stop_car();
+    }
+      /*turn_left(100);
+         delay(380);
+         if(!middleSensor){
+         countBumper = countBumper + 1;
+         }
+    }
+    if(bumperSensor && countBumper==5){
+      improved_correct_track(200);
+    }*/
+        /*if (!OleftSensor && OrightSensor)
         {
             //stop_car();
             turn_left(regular_speed);
             countBumper++;
-            delay(350);
-            go_straight(regular_speed);
-            delay(100);
+            delay(400);
         }
-        older_correct_track();
+        correct_track(10);
     }
 
     if (bumperSensor && countBumper == 3)
@@ -199,40 +437,31 @@ void loop()
         correct_track(10);
         if (!leftSensor && !rightSensor)
         {
-            //stop_car();
-            //delay(10000);
             turn_left(regular_speed);
-            
-            delay(720);
             countBumper++;
-            go_straight(regular_speed);
-            delay(200);
-         }
+            delay(800);
+        }
     }
     if (bumperSensor && countBumper == 4)
     {
         /*go_straight(regular_speed);
-        delay(700);*/
+        delay(700);
         correct_track(10);
         if (!leftSensor && !rightSensor && !OleftSensor && !OrightSensor)
         {
-            go_straight(regular_speed);
-            delay(100);
+
             turn_left(regular_speed);
-            delay(350);
             countBumper = countBumper + 1;
-            
+            delay(360);
         }
     }
     if (bumperSensor && countBumper == 5)
     {
         go_straight(regular_speed);
-        delay(300);
+        delay(700);
         correct_track(10);
         if (!OrightSensor && !rightSensor)
         {
-            go_straight(regular_speed);
-            delay(100);
             turn_right(regular_speed);
 
             delay(500);
@@ -263,7 +492,7 @@ void loop()
     if (bumperSensor && countBumper == 7)
     {
         /*go_straight(regular_speed);
-        delay(500);*/
+        delay(500);
         correct_track(10);
         if (!leftSensor && !OleftSensor && rightSensor)
         {
@@ -274,7 +503,7 @@ void loop()
 
         /*older_correct_track();
            countBumper = countBumper + 1;
-           delay(360);*/
+           delay(360);
     }
     if (bumperSensor && countBumper == 8)
     {
@@ -349,7 +578,7 @@ void loop()
         {
             //stop_car();
             turn_left(regular_speed);
-            delay(1500);
+            delay(1600);
             go_straight(regular_speed);
             delay(200);
             countBumper++;
@@ -358,7 +587,7 @@ void loop()
     if(bumperSensor && countBumper == 13)
     {
         older_correct_track();
-        if(!bumperSensor)
+        if(!leftSensor && !rightSensor)
         {
             stop_car();
             go_back(regular_speed);
@@ -408,4 +637,4 @@ void loop()
         }
     }
     */
-}
+          }    
